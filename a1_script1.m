@@ -46,6 +46,8 @@ imfilter_image = imfilter(img,kernel);
 figure, imshow(imfilter_image)
 
 %Absolute difference
+MyConv_image = MyConv( img2,kernel );
+figure, imshow(MyConv_image)
 absolute_difference = imfilter_image - MyConv_image;
 fprintf('There is difference in values between imfilter and MyConv\n');
 fprintf('The image turns black. However, with a smaller hsize less than 6, the image is viewable\n');
@@ -79,14 +81,25 @@ imgY=imfilter(imgX,Y);
 toc
 pause
 
+
+% Question2 testing canny edge function
+img9 = imread('bowl-of-fruit.jpg');
+figure('Name', 'Original Image'); imshow(img9, []);
+pause
+img10 = rgb2gray(img9);
+my_edges = MyCanny(img10,3,10);
+figure('Name', 'Edges'); imshow(my_edges, []);
+pause
+
+
 % Question 3
 image = imread('ryerson.jpg');
 horizontal = input('Horizontal Seams to remove : ');
 vertical = input('Vertical Seams to remove : ');
 imshow(image)
 img = image;
-size = size(image);
-if (vertical < size(2)) && (horizontal < size(1))
+sz = size(image);
+if (vertical < sz(2)) && (horizontal < sz(1))
     
     for k = 1:vertical
         dp = MySeamCarving(img);
@@ -104,6 +117,7 @@ if (vertical < size(2)) && (horizontal < size(1))
 else
     disp('Invalid Input');
 end
+
 
 
 
@@ -222,5 +236,79 @@ function [new] = CarvingHelper(dp, img)
         end
     end
 end
+
+%Question 2 - Edge Detection (without hysteresis mechanism)
+
+function edges = MyCanny(img_in, sigma, tau)
+    
+    img_in = double(img_in);
+    
+    imgSize = size(img_in);
+    imgHeight = imgSize(1);
+    imgWide = imgSize(2);
+    
+    gaussKernel = fspecial('gaussian', [5 5], sigma);
+    h = fspecial('sobel');
+    
+    derivFilter = imfilter(gaussKernel, h, 'conv');
+    
+    deriv_imgx = imfilter(img_in, derivFilter', 'conv');
+    deriv_imgy = imfilter(img_in, derivFilter, 'conv');
+    
+    img_in_grad_mag = sqrt(deriv_imgx.^2 + deriv_imgy.^2);
+    img_in_grad_or = atan2(deriv_imgy, deriv_imgx);
+    
+    low_threshold = 5;
+    img_in_threshold_high = img_in_grad_mag > tau;
+    img_in_threshold_low = img_in_grad_mag > low_threshold;
+    
+    %supress
+    img_in_grad_mag = (img_in_grad_mag(:, :) > tau) .* img_in_grad_mag;
+    
+    img_edges = zeros(imgHeight, imgWide);
+    
+    for(i = 2 : imgHeight - 1) 
+        for(j = 2 : imgWide - 1)
+            pixelm = img_in_grad_mag(i,j);
+            pixeld = abs(img_in_grad_or(i,j));
+            
+            if(pixeld < 0)
+                pixeld = pixeld + pi;
+            end
+            
+            if(pixeld >=0 && pixeld < (pi/6)) || (pixeld <= pi && pixeld >= (5*pi/6))
+                if pixelm > img_in_grad_mag(i, j-1) && pixelm > img_in_grad_mag(i, j+1)
+                    img_edges(i, j) = 1;
+                end
+            end
+            
+            if(pixeld >= (pi/3) && pixeld < (2*pi/3))
+                if(pixelm > img_in_grad_mag(i-1, j+1) && pixelm > img_in_grad_mag(i+1, j))
+                   img_edges(i, j) = 1;
+                end
+            end
+            
+            if(pixeld >= (pi/6) && pixeld < (pi/3))
+                if(pixelm > img_in_grad_mag(i-1, j+1) && pixelm > img_in_grad_mag(i+1, j-1))
+                    img_edges(i, j) = 1;
+                end
+            end
+            
+            if(pixeld >= (2*pi/3) && pixeld < (5*pi/6))
+                if pixelm > img_in_grad_mag(i-1, j-1) && pixelm > img_in_grad_mag(i+1, j+1)
+                    img_edges(i,j) = 1;
+                end
+            end
+        end
+    end
+    
+    figure('Name', 'Edges of Image');imshow(img_edges, [])
+    
+    edges = img_edges;
+    
+end
+
+
+
 
 
